@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Silent Voice - Sign Language to Speech</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* --- BACKGROUND VIDEO --- */
+        #bgVideo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: -2;
+            /* no dark filter */
+            filter: none;
+        }
+
+
+        /* dark overlay so foreground is readable */
+        .bg-overlay {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.20), rgba(0, 0, 0, 0.35));
+            z-index: -1;
+        }
+
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* replaced bluish gradient with dark tones */
+            background: linear-gradient(135deg, #0b0b0b 0%, #0f0f0f 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: #e6e6e6;
+        }
+
+        /* container switched to translucent dark so background video shows */
+        .container {
+            background: rgba(8, 8, 8, 0.55);
+
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            max-width: 1200px;
+            width: 100%;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        /* header uses darker tones instead of purple */
+        .header {
+            background: linear-gradient(135deg, rgba(12, 12, 12, 0.6) 0%, rgba(18, 18, 18, 0.6) 100%);
+            color: #fff;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.85;
+            color: #d6d6d6;
+        }
+
+        /* new hero block (added text) */
+        .hero {
+            padding: 40px 20px;
+            text-align: center;
+            color: #fff;
+        }
+
+        .hero .hero-title {
+            font-size: 3.2rem;
+            line-height: 1.02;
+            font-weight: 800;
+            margin-bottom: 12px;
+            letter-spacing: -1px;
+            color: #f7f7f7;
+            text-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+        }
+
+        .hero .hero-sub {
+            font-size: 1.05rem;
+            color: #cfcfcf;
+            margin-bottom: 18px;
+            opacity: 0.95;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .video-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        #videoElement {
+            width: 100%;
+            height: auto;
+            display: block;
+            transform: scaleX(-1);
+            /* Mirror effect */
+        }
+
+        #canvasElement {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1);
+            /* Mirror effect */
+        }
+
+        /* gesture display - changed to dark gradient */
+        .gesture-display {
+            background: linear-gradient(135deg, rgba(14, 14, 14, 0.7) 0%, rgba(28, 28, 28, 0.7) 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .gesture-display h2 {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .gesture-display .gesture-text {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #f3f3f3;
+        }
+
+        .gesture-display .confidence {
+            font-size: 1em;
+            opacity: 0.8;
+            color: #cfcfcf;
+        }
+
+        .control-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .mode-selector {
+            background: rgba(18, 18, 18, 0.6);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .mode-selector h3 {
+            margin-bottom: 15px;
+            color: #e6e6e6;
+        }
+
+        .mode-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* mode buttons - replaced purple with dark theme */
+        .mode-btn {
+            padding: 15px;
+            border: 2px solid rgba(180, 180, 180, 0.12);
+            background: rgba(255, 255, 255, 0.03);
+            color: #e6e6e6;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .mode-btn:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.6);
+        }
+
+        .mode-btn.active {
+            background: rgba(255, 255, 255, 0.09);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.14);
+        }
+
+        .language-selector,
+        .gesture-manager {
+            background: rgba(18, 18, 18, 0.6);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .language-selector h3,
+        .gesture-manager h3 {
+            margin-bottom: 15px;
+            color: #e6e6e6;
+        }
+
+        select,
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(100, 100, 100, 0.12);
+            border-radius: 8px;
+            font-size: 1em;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            color: #eaeaea;
+            transition: border-color 0.3s ease;
+        }
+
+        select:focus,
+        input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.18);
+        }
+
+        /* buttons - replaced purple gradient with subtle dark sheen */
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.6);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .gesture-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.02);
+            border: 2px solid rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            color: #ddd;
+        }
+
+        .gesture-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #ddd;
+        }
+
+        .gesture-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .delete-btn {
+            padding: 5px 15px;
+            background: #b33b3b;
+            font-size: 0.9em;
+            width: auto;
+            color: #fff;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .status {
+            padding: 15px;
+            background: #1b3a2a;
+            color: #cbe6cf;
+            border-radius: 10px;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        .status.error {
+            background: #3a1b1b;
+            color: #f5c6cb;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .sample-counter {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 10px;
+            font-weight: 600;
+            color: #e0e0e0;
+            font-size: 1.2em;
+        }
+
+        /* loader: subtle light top */
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.06);
+            border-top: 4px solid rgba(255, 255, 255, 0.32);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* small responsiveness tweaks for hero */
+        @media (max-width: 900px) {
+            .hero .hero-title {
+                font-size: 2rem;
+            }
+
+            .hero .hero-sub {
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Background video: replace src with an actual mp4/webm file (assets/bg.mp4 used here as placeholder).
+         Poster uses the image you provided (stored at /mnt/data/...) -->
+    <video id="bgVideo" autoplay muted loop playsinline poster="">
+        <source src="Silent_Voice.mp4" type="video/mp4" />
+        Your browser does not support the video tag.
+    </video>
+    <div class="bg-overlay"></div>
+
+    <div class="bg-overlay" aria-hidden="true"></div>
+
+    <div class="container">
+        <div class="header">
+            <h1> Silent Voice</h1>
+            <p>Sign Language to Speech Recognition</p>
+            <button id="muteBtn" style="margin-top: 10px; width: auto; padding: 8px 20px;">
+                🔊 Mute
+            </button>
+        </div>
+
+
+        <!-- NEW HERO TEXT (added, does not change existing functionality) -->
+        <div class="hero" aria-hidden="false">
+            <div class="hero-title">An AI Translation Experience.</div>
+            <div class="hero-sub">Technology meets communication.</div>
+        </div>
+
+        <div class="main-content">
+            <!-- Video Section -->
+            <div class="video-section">
+                <div class="video-container">
+                    <video id="videoElement" autoplay playsinline></video>
+                    <canvas id="canvasElement"></canvas>
+                </div>
+
+                <div class="gesture-display">
+                    <h2>Detected Gesture</h2>
+                    <div class="gesture-text" id="gestureText">Show your hand...</div>
+                    <div class="confidence" id="confidenceText"></div>
+                </div>
+            </div>
+
+            <!-- Control Section -->
+            <div class="control-section">
+                <!-- Mode Selector -->
+                <div class="mode-selector">
+                    <h3>🎯 Select Mode</h3>
+                    <div class="mode-buttons">
+                        <button class="mode-btn active" data-mode="recognize">👁️ Recognize</button>
+                        <button class="mode-btn" data-mode="create">➕ Create</button>
+                        <button class="mode-btn" data-mode="edit">✏️ Edit</button>
+                        <button class="mode-btn" data-mode="delete">🗑️ Delete</button>
+                        <button class="mode-btn" data-mode="letter">🔤 Letter</button>
+                    </div>
+
+                </div>
+
+                <!-- Language Selector -->
+                <div class="language-selector">
+                    <h3>🌍 Language</h3>
+                    <select id="languageSelect">
+                        <option value="en">English</option>
+                        <option value="kn">Kannada (ಕನ್ನಡ)</option>
+                        <option value="hi">Hindi (हिंदी)</option>
+                        <option value="te">Telugu (తెలుగు)</option>
+                    </select>
+                </div>
+
+                <!-- Gesture Manager -->
+                <div class="gesture-manager" id="gestureManager">
+                    <!-- Create Mode -->
+                    <div id="createMode" style="display:none;">
+                        <h3>Create New Gesture</h3>
+                        <input type="text" id="newGestureName" placeholder="Enter gesture name (e.g., Hello, Peace)">
+                        <button id="startCreateBtn">Start Capturing (50 samples)</button>
+                        <div id="createSampleCounter" class="sample-counter" style="display:none;">
+                            Samples: <span id="createCount">0</span> / 50
+                        </div>
+                        <div id="createStatus" class="status"></div>
+                    </div>
+
+                    <!-- Edit Mode -->
+                    <div id="editMode" style="display:none;">
+                        <h3>Add Samples to Existing Gesture</h3>
+                        <select id="editGestureSelect">
+                            <option value="">-- Select Gesture --</option>
+                        </select>
+                        <button id="startEditBtn" disabled>Add 20 More Samples</button>
+                        <div id="editSampleCounter" class="sample-counter" style="display:none;">
+                            Samples: <span id="editCount">0</span> / 20
+                        </div>
+                        <div id="editStatus" class="status"></div>
+                    </div>
+
+                    <!-- Delete Mode -->
+                    <div id="deleteMode" style="display:none;">
+                        <h3>Delete Gestures</h3>
+                        <div id="gestureList" class="gesture-list">
+                            <p style="text-align: center; color: #999;">Loading gestures...</p>
+                        </div>
+                        <button id="refreshListBtn">🔄 Refresh List</button>
+                        <div id="deleteStatus" class="status"></div>
+                    </div>
+                    <!-- Letter Mode -->
+                    <div id="letterMode" style="display:none;">
+                        <h3>Letter Mode</h3>
+                        <p style="color:#aaa; margin-bottom:10px;">
+                            Type letters one by one to build a word or sentence, then speak it.
+                        </p>
+
+                        <input type="text" id="letterInput" maxlength="1" placeholder="Type a letter (A-Z)" />
+
+                        <button id="addLetterBtn" style="margin-top:8px;">
+                            ➕ Add Letter
+                        </button>
+
+                        <div style="margin-top:15px;">
+                            <strong>Current text:</strong>
+                            <div id="letterTextDisplay" style="margin-top:6px; padding:10px; border-radius:8px;
+                    background:rgba(255,255,255,0.03); min-height:32px;">
+                            </div>
+                        </div>
+
+                        <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+                            <button id="speakLetterTextBtn">🗣️ Speak Text</button>
+                            <button id="clearLetterTextBtn">🧹 Clear</button>
+                            <button id="addSpaceBtn">␣ Add Space</button>
+                            <button id="backspaceBtn">⌫ Backspace</button>
+                        </div>
+
+                        <div id="letterStatus" class="status"></div>
+                    </div>
+
+
+                    <!-- Recognize Mode -->
+                    <div id="recognizeMode">
+                        <h3>Recognition Active</h3>
+                        <p style="color: #aaa; margin-bottom: 15px;">Show your gesture to the camera. The system will
+                            recognize and speak it automatically.</p>
+                        <div class="loader" id="recognizeLoader"></div>
+                        <div id="recognizeStatus" class="status"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MediaPipe Hands -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+    <script>
+        // Configuration
+        const API_BASE = window.location.origin; // Same origin as frontend
+        let currentMode = 'recognize';
+        let currentLanguage = 'en';
+        let isCapturing = false;
+        let captureTarget = 0;
+        let captureCount = 0;
+        let currentGestureLabel = '';
+        let isMuted = false;
+        // Letter Mode specific variables
+        let lastDetectedLetter = '';
+        let lastLetterTime = 0;
+        const LETTER_COOLDOWN = 2000; // 2 second cooldown between same letters
+
+
+        // Smoothing buffer for recognition
+        const predictionBuffer = [];
+        const BUFFER_SIZE = 7;
+        let lastSpokenGesture = '';
+        let lastSpeechTime = 0;
+
+        // MediaPipe Hands setup
+        const videoElement = document.getElementById('videoElement');
+        const canvasElement = document.getElementById('canvasElement');
+        const canvasCtx = canvasElement.getContext('2d');
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onHandsResults);
+
+        // Camera setup
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({ image: videoElement });
+            },
+            width: 640,
+            height: 480
+        });
+
+        camera.start();
+
+        // Normalize landmarks (same as Python code)
+        function normalizeLandmarks(landmarks) {
+            // Convert to array of [x, y, z]
+            const pts = landmarks.map(lm => [lm.x, lm.y, lm.z]);
+
+            // Translate: wrist (index 0) is origin
+            const wrist = pts[0].slice();
+            const translated = pts.map(p => [
+                p[0] - wrist[0],
+                p[1] - wrist[1],
+                p[2] - wrist[2]
+            ]);
+
+            // Scale: divide by max distance from wrist
+            const distances = translated.map(p => Math.sqrt(p[0] ** 2 + p[1] ** 2 + p[2] ** 2));
+            let maxDist = Math.max(...distances);
+            if (maxDist < 1e-6) maxDist = 1.0;
+
+            const normalized = translated.map(p => [
+                p[0] / maxDist,
+                p[1] / maxDist,
+                p[2] / maxDist
+            ]);
+
+            // Flatten to 63 elements
+            return normalized.flat();
+        }
+
+        // Handle hand detection results
+        async function onHandsResults(results) {
+            // Set canvas size to match video
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+
+            // Clear canvas
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            // Draw hand landmarks if detected
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+
+                // Draw connections and landmarks
+                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
+                drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 1, radius: 3 });
+
+                // Normalize landmarks
+                const normalizedLandmarks = normalizeLandmarks(landmarks);
+
+                // Handle based on current mode
+                // Handle based on current mode
+                if (currentMode === 'recognize') {
+                    await handleRecognition(normalizedLandmarks);
+                } else if (currentMode === 'letter') {
+                    await handleLetterRecognition(normalizedLandmarks);
+                } else if (isCapturing) {
+                    await handleCapture(normalizedLandmarks);
+                }
+            } else {
+                // No hand detected
+                if (currentMode === 'recognize') {
+                    document.getElementById('gestureText').textContent = 'Show your hand...';
+                    document.getElementById('confidenceText').textContent = '';
+                }
+            }
+
+            canvasCtx.restore();
+        }
+
+        // Handle recognition mode
+        async function handleRecognition(landmarks) {
+            try {
+                const response = await fetch(`${API_BASE}/api/recognize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        landmarks: landmarks,
+                        language: currentLanguage
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.gesture) {
+                    // Add to smoothing buffer
+                    predictionBuffer.push(data.gesture);
+                    if (predictionBuffer.length > BUFFER_SIZE) {
+                        predictionBuffer.shift();
+                    }
+
+                    // Get most common prediction
+                    const counts = {};
+                    predictionBuffer.forEach(g => counts[g] = (counts[g] || 0) + 1);
+                    const smoothedGesture = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+
+                    // Update UI
+                    document.getElementById('gestureText').textContent = smoothedGesture;
+                    document.getElementById('confidenceText').textContent = `Confidence: ${(data.confidence * 100).toFixed(0)}%`;
+
+                    // Speak if stable and different or 2 seconds passed
+                    const now = Date.now();
+                    if (smoothedGesture !== lastSpokenGesture || (now - lastSpeechTime) > 2000) {
+                        speak(data.speech_text, currentLanguage);
+                        lastSpokenGesture = smoothedGesture;
+                        lastSpeechTime = now;
+                    }
+                } else {
+                    document.getElementById('gestureText').textContent = 'No valid gesture';
+                    document.getElementById('confidenceText').textContent = '';
+                }
+            } catch (error) {
+                console.error('Recognition error:', error);
+            }
+        }
+        // Handle letter recognition in Letter Mode
+        async function handleLetterRecognition(landmarks) {
+            try {
+                const response = await fetch(`${API_BASE}/api/recognize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        landmarks: landmarks,
+                        language: 'en' // Always use English for letter detection
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.gesture && data.confidence > 0.6) {
+                    const detectedGesture = data.gesture.toUpperCase();
+
+                    // Check if it's a single letter A-Z
+                    if (detectedGesture.length === 1 && /^[A-Z]$/.test(detectedGesture)) {
+                        const now = Date.now();
+
+                        // Apply cooldown: only add if different letter OR enough time has passed
+                        if (detectedGesture !== lastDetectedLetter || (now - lastLetterTime) > LETTER_COOLDOWN) {
+                            letterText += detectedGesture;
+                            updateLetterDisplay();
+
+                            // Visual feedback
+                            showStatus(`Added letter: ${detectedGesture}`, false, 'letter');
+
+                            // Update tracking
+                            lastDetectedLetter = detectedGesture;
+                            lastLetterTime = now;
+
+                            console.log(`📝 Letter added: ${detectedGesture}, Full text: ${letterText}`);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Letter recognition error:', error);
+            }
+        }
+
+        // Handle sample capture (create/edit modes)
+        async function handleCapture(landmarks) {
+            try {
+                const response = await fetch(`${API_BASE}/api/create-gesture`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        label: currentGestureLabel,
+                        landmarks: landmarks
+                    })
+                });
+
+                const data = await response.json();
+                captureCount++;
+
+                // Update counter
+                const counterId = currentMode === 'create' ? 'createCount' : 'editCount';
+                document.getElementById(counterId).textContent = captureCount;
+
+                // Check if done
+                if (captureCount >= captureTarget) {
+                    finishCapture();
+                }
+            } catch (error) {
+                console.error('Capture error:', error);
+                showStatus(`Error: ${error.message}`, true, currentMode);
+                finishCapture();
+            }
+        }
+
+        // Text-to-speech - Uses gTTS for Indian languages, Web Speech API for English
+        async function speak(text, lang) {
+            if (isMuted) return; // 🚫 Prevent speaking when muted
+            // For Indian languages (Kannada, Hindi, Telugu), use backend gTTS
+            if (lang === 'kn' || lang === 'hi' || lang === 'te') {
+                try {
+                    const response = await fetch(`${API_BASE}/api/speak`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            text: text,
+                            language: lang   // <-- change target_lang -> language
+                        })
+
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success && data.audio_base64) {
+                        // Convert base64 to audio and play
+                        const audio = new Audio('data:audio/mp3;base64,' + data.audio_base64);
+                        audio.play();
+                        console.log(`🔊 Speaking (gTTS): "${text}" in ${lang}`);
+                    }
+                } catch (error) {
+                    console.error('TTS error:', error);
+                    // Fallback to Web Speech API
+                    speakWithWebAPI(text, lang);
+                }
+            } else {
+                // For English, use Web Speech API (faster, no network needed)
+                speakWithWebAPI(text, lang);
+            }
+        }
+
+        // Web Speech API fallback
+        function speakWithWebAPI(text, lang) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = lang;
+                utterance.rate = 0.9;
+                utterance.pitch = 1;
+                window.speechSynthesis.speak(utterance);
+                console.log(`🔊 Speaking (Web API): "${text}" in ${lang}`);
+            }
+        }
+
+        // Mode switching
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Update active button
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Switch mode
+                currentMode = btn.dataset.mode;
+                switchMode(currentMode);
+            });
+        });
+        // Stop any ongoing capture
+        function switchMode(mode) {
+            // Reset letter mode tracking when switching modes
+            lastDetectedLetter = '';
+            lastLetterTime = 0;
+
+            // Hide all mode panels
+            // ... rest of existing code
+
+            // Hide all mode panels
+            document.getElementById('createMode').style.display = 'none';
+            document.getElementById('editMode').style.display = 'none';
+            document.getElementById('deleteMode').style.display = 'none';
+            document.getElementById('recognizeMode').style.display = 'none';
+            document.getElementById('letterMode').style.display = 'none';
+
+            // Stop any ongoing capture
+            isCapturing = false;
+
+            // Show selected mode
+            if (mode === 'create') {
+                document.getElementById('createMode').style.display = 'block';
+            } else if (mode === 'edit') {
+                document.getElementById('editMode').style.display = 'block';
+                loadGesturesForEdit();
+            } else if (mode === 'delete') {
+                document.getElementById('deleteMode').style.display = 'block';
+                loadGesturesForDelete();
+            } else if (mode === 'letter') {
+                document.getElementById('letterMode').style.display = 'block';
+            } else if (mode === 'recognize') {
+                document.getElementById('recognizeMode').style.display = 'block';
+                predictionBuffer.length = 0; // Clear buffer
+                lastSpokenGesture = '';
+            }
+        }
+
+
+        // Language selection
+        document.getElementById('languageSelect').addEventListener('change', (e) => {
+            currentLanguage = e.target.value;
+            predictionBuffer.length = 0; // Clear buffer on language change
+            lastSpokenGesture = '';
+        });
+
+        // Create gesture functionality
+        document.getElementById('startCreateBtn').addEventListener('click', () => {
+            const gestureName = document.getElementById('newGestureName').value.trim();
+
+            if (!gestureName) {
+                showStatus('Please enter a gesture name', true, 'create');
+                return;
+            }
+
+            currentGestureLabel = gestureName;
+            captureTarget = 50;
+            captureCount = 0;
+            isCapturing = true;
+
+            document.getElementById('createSampleCounter').style.display = 'block';
+            document.getElementById('createCount').textContent = '0';
+            document.getElementById('startCreateBtn').disabled = true;
+            showStatus(`Capturing samples for "${gestureName}"... Show your gesture!`, false, 'create');
+        });
+
+        function finishCapture() {
+            isCapturing = false;
+            const mode = currentMode;
+
+            if (mode === 'create') {
+                document.getElementById('startCreateBtn').disabled = false;
+                document.getElementById('createSampleCounter').style.display = 'none';
+                showStatus(`Successfully created gesture "${currentGestureLabel}" with ${captureCount} samples!`, false, 'create');
+                document.getElementById('newGestureName').value = '';
+            } else if (mode === 'edit') {
+                document.getElementById('startEditBtn').disabled = false;
+                document.getElementById('editSampleCounter').style.display = 'none';
+                showStatus(`Successfully added ${captureCount} samples to "${currentGestureLabel}"!`, false, 'edit');
+            }
+        }
+
+        // Edit gesture functionality
+        document.getElementById('editGestureSelect').addEventListener('change', (e) => {
+            document.getElementById('startEditBtn').disabled = !e.target.value;
+        });
+
+        document.getElementById('startEditBtn').addEventListener('click', () => {
+            const gestureName = document.getElementById('editGestureSelect').value;
+
+            if (!gestureName) return;
+
+            currentGestureLabel = gestureName;
+            captureTarget = 20;
+            captureCount = 0;
+            isCapturing = true;
+
+            document.getElementById('editSampleCounter').style.display = 'block';
+            document.getElementById('editCount').textContent = '0';
+            document.getElementById('startEditBtn').disabled = true;
+            showStatus(`Adding samples to "${gestureName}"... Show your gesture!`, false, 'edit');
+        });
+
+        async function loadGesturesForEdit() {
+            try {
+                const response = await fetch(`${API_BASE}/api/gestures`);
+                const data = await response.json();
+
+                const select = document.getElementById('editGestureSelect');
+                select.innerHTML = '<option value="">-- Select Gesture --</option>';
+
+                data.gestures.forEach(g => {
+                    const option = document.createElement('option');
+                    option.value = g.label;
+                    option.textContent = `${g.label} (${g.sample_count} samples)`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading gestures:', error);
+            }
+        }
+
+        // Delete gesture functionality
+        document.getElementById('refreshListBtn').addEventListener('click', loadGesturesForDelete);
+
+        async function loadGesturesForDelete() {
+            try {
+                const response = await fetch(`${API_BASE}/api/gestures`);
+                const data = await response.json();
+
+                const listDiv = document.getElementById('gestureList');
+
+                if (data.gestures.length === 0) {
+                    listDiv.innerHTML = '<p style="text-align: center; color: #666;">No gestures found</p>';
+                    return;
+                }
+
+                listDiv.innerHTML = '';
+                data.gestures.forEach(g => {
+                    const item = document.createElement('div');
+                    item.className = 'gesture-item';
+                    item.innerHTML = `
+                        <span>${g.label} (${g.sample_count} samples)</span>
+                        <button class="delete-btn" onclick="deleteGesture('${g.label}')">Delete</button>
+                    `;
+                    listDiv.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Error loading gestures:', error);
+            }
+        }
+
+        async function deleteGesture(label) {
+            if (!confirm(`Are you sure you want to delete "${label}"?`)) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/delete-gesture`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ label: label })
+                });
+
+                const data = await response.json();
+                showStatus(data.message, false, 'delete');
+                loadGesturesForDelete();
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, true, 'delete');
+            }
+        }
+
+        // Utility function to show status messages
+        function showStatus(message, isError, mode) {
+            const statusId = `${mode}Status`;
+            const statusDiv = document.getElementById(statusId);
+
+            if (!statusDiv) return;
+
+            statusDiv.textContent = message;
+            statusDiv.className = `status show ${isError ? 'error' : ''}`;
+
+            setTimeout(() => {
+                statusDiv.classList.remove('show');
+            }, 5000);
+        }
+        document.getElementById("muteBtn").addEventListener("click", () => {
+            isMuted = !isMuted;
+
+            const btn = document.getElementById("muteBtn");
+            if (isMuted) {
+                btn.textContent = "🔇 Unmute";
+                window.speechSynthesis.cancel(); // stop any active speaking
+            } else {
+                btn.textContent = "🔊 Mute";
+            }
+        });
+        // ---------------- Letter Mode Logic ----------------
+        let letterText = "";
+
+        // Helper to refresh text display
+        function updateLetterDisplay() {
+            document.getElementById("letterTextDisplay").textContent = letterText || "(empty)";
+        }
+
+        // Add letter from input
+        function addLetterFromInput() {
+            const input = document.getElementById("letterInput");
+            const val = input.value.trim();
+
+            if (!val) {
+                showStatus("Please type a letter.", true, "letter");
+                return;
+            }
+            // Take only first character
+            const ch = val[0];
+
+            letterText += ch;
+            input.value = "";
+            updateLetterDisplay();
+            showStatus(`Added "${ch}"`, false, "letter");
+        }
+
+        // Listeners
+        document.getElementById("addLetterBtn").addEventListener("click", addLetterFromInput);
+
+        document.getElementById("letterInput").addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                addLetterFromInput();
+            }
+        });
+
+        document.getElementById("addSpaceBtn").addEventListener("click", () => {
+            letterText += " ";
+            updateLetterDisplay();
+        });
+        document.getElementById("backspaceBtn").addEventListener("click", () => {
+            if (letterText.length > 0) {
+                letterText = letterText.slice(0, -1);
+                updateLetterDisplay();
+                showStatus("Deleted last character.", false, "letter");
+            } else {
+                showStatus("Nothing to delete.", true, "letter");
+            }
+        });
+
+        document.getElementById("clearLetterTextBtn").addEventListener("click", () => {
+            letterText = "";
+            lastDetectedLetter = '';
+            lastLetterTime = 0;
+            updateLetterDisplay();
+            showStatus("Cleared text.", false, "letter");
+        });
+
+        document.getElementById("speakLetterTextBtn").addEventListener("click", () => {
+            if (!letterText.trim()) {
+                showStatus("Nothing to speak. Please add some letters.", true, "letter");
+                return;
+            }
+            speak(letterText, currentLanguage);
+            showStatus("Speaking text.", false, "letter");
+        });
+
+        // Initialize display once
+        updateLetterDisplay();
+
+
+
+        // Initialize
+        switchMode('recognize');
+    </script>
+</body>
+
+</html>

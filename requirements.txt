@@ -1,0 +1,22 @@
+# Silent Voice - Web Application Dependencies
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Data Processing
+numpy==1.24.3
+
+# Translation
+googletrans==3.1.0a0
+
+# Optional: MediaPipe (for backend compatibility, not actively used)
+# mediapipe==0.10.8
+
+# Type Hints
+pydantic==2.5.0
+
+# Note: Frontend dependencies are loaded via CDN in index.html:
+# - MediaPipe Hands JS
+# - MediaPipe Camera Utils
+# - MediaPipe Drawing Utils

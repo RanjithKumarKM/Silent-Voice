@@ -13,7 +13,7 @@ Features
 - Built using Python and computer vision  
 - Can be extended to voice output in the future  
 
-----------------------------------------------------------------
+
 
 Technologies Used
 
@@ -23,7 +23,7 @@ Technologies Used
 - NumPy  
 - HTML and CSS (if frontend is used)  
 
-----------------------------------------------------------------
+
 
 Project Structure
 
@@ -34,7 +34,6 @@ Silent Voice/
 │── gesture_dataset/  
 │── README.md  
 
-----------------------------------------------------------------
 
 Installation and Setup
 
@@ -59,7 +58,7 @@ pip install -r requirements.txt
 
 python app.py  
 
-----------------------------------------------------------------
+
 
 Use Case
 

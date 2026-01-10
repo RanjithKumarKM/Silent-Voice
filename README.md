@@ -35,28 +35,6 @@ Silent Voice/
 │── README.md  
 
 
-Installation and Setup
-
-1. Clone the repository
-
-git clone https://github.com/RanjithKumarKM/silent-voice.git
-
-2. Navigate to the project folder
-
-cd silent-voice
-
-3. Create and activate virtual environment
-
-python -m venv venv  
-venv\Scripts\activate  
-
-4. Install required dependencies
-
-pip install -r requirements.txt  
-
-5. Run the application
-
-python app.py  
 
 
 

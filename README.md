@@ -17,7 +17,7 @@ Features
 
 Technologies Used
 
-- Python  
+- Python     
 - OpenCV  
 - Machine Learning  
 - NumPy  

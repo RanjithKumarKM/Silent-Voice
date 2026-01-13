@@ -3,7 +3,7 @@ Silent Voice
 Silent Voice is a sign language recognition project designed to help deaf and mute individuals communicate more easily with others.  
 The system captures hand gestures and converts them into meaningful text or speech using computer vision and machine learning techniques.
 
-----------------------------------------------------------------
+
 
 Features
 
